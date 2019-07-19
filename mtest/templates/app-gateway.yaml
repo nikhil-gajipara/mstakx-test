@@ -1,0 +1,60 @@
+{{ if and .Values.service.enabled (eq .Values.service.enabled "true") }}
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: {{ .Values.appgateway.gwname }}
+  namespace: {{ .Values.namespace.name }}
+spec:
+  selector:
+    istio: ingressgateway # use Istio default gateway implementation
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - {{ .Values.appgateway.host }}
+{{ end }}
+---
+{{ if and .Values.service.enabled (eq .Values.service.enabled "true") }}
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name:  {{ .Values.appgateway.vsname }}
+  namespace: {{ .Values.namespace.name }}
+spec:
+  hosts:
+  - {{ .Values.appgateway.host }}
+  gateways:
+  - {{ .Values.appgateway.gwname }}
+  http:
+  - match:
+    - headers:
+        svc-ver:
+          exact: v1
+      uri:
+        prefix: /api/v1/values
+    route:
+    - destination:
+        port:
+          number: 80
+        host: {{ .Values.service.name }}.silver.svc.cluster.local
+        subset: v1
+      weight: 100
+    timeout: 100s
+  - match:
+    - headers:
+        svc-ver:
+          exact: v2
+      uri:
+        prefix: /api/v1/values
+    route:
+    - destination:
+        port:
+          number: 80
+        host: {{ .Values.service.name }}.silver.svc.cluster.local
+        subset: v2
+      weight: 100
+    timeout: 100s
+{{ end }}
+---

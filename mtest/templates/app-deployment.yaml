@@ -1,0 +1,42 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: "{{ .Values.deployment.name }}-{{ .Values.deployment.version }}"
+  namespace: {{ .Values.namespace.name }}
+spec:
+  replicas: {{ .Values.replicaCount }}  
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.service.name }}
+        version: {{ .Values.deployment.version }}
+    spec:    
+      imagePullSecrets:
+      - name: artifactory-imagepullsecret    
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+          - name: http
+            containerPort: 80
+            protocol: TCP
+          env:
+          - name: "NAMESPACE_NAME"
+            value: {{ .Values.namespace.name }}
+          - name: "SERVICE_NAME"
+            value: {{ .Values.service.name }}
+          - name: "SERVICE_VERSION"
+            value: {{ .Values.deployment.version }}
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: "{{ .Values.service.name }}-{{ .Values.deployment.version }}-dr"
+  namespace: silver
+spec:
+  host: {{ .Values.service.name }}.silver.svc.cluster.local
+  subsets:
+  - name: {{ .Values.deployment.version }}
+    labels:
+      version: {{ .Values.deployment.version }}  
